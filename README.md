@@ -1,26 +1,32 @@
-# VXMA_PY
-Self Hosting บอท VXMA version PYTHON!.
-# Finally VXMA bot binance-api (Future) in python.
-This script work on both one-way mode and Hegde mode.
-# There is 18 setting for this bot
-การตั้งค่าหลายแบบ ให้คั่นด้วยคอมม่า และจำนวนต้องตรงกัน เช่นเล่น 4 คู่เทรด (leverage 1,2,3,4 = symbol 1,2,3,4) และการตั้งค่า TA ต่าง ๆ ก็ต้องไล่ลำดับเช่นกัน สามารถตั้งค่าหลาย ๆ แบบ ตั้งแต่ข้อ 9 เป็นต้นไป  !!ย้ำ!! จัดลำดับให้ถูกต้อง 1,2,3,4
-1. API_KEY
-2. API_SECRET
-3. LINE_TOKEN
-4. MIN_BALANCE = $40
-5. RiskReward = 3
-6. TP_Percent = 50
-7. Pivot_lookback = 50
-8. LOST_PER_TARDE = 2 or $10 #ใช้ตัวเลขเฉย ๆ = เป็น % ใช้ $ เป็น Fiat.
-9. SYMBOL_NAME = BTC,ETH,XMR,ADA  
-10. LEVERAGE = 125,50,50,25
-11. TF = 15m,1h,4h,1d
-12. ATR_Period = 12,20,20,14
-13. ATR_Mutiply = 1.6,2,1.5,3
-14. RSI_Period = 25,14,25,30
-15. EMA_Fast = 30,27,57,40
-16. SUBHAG_LINEAR = 30,50,84,100
-17. SMOOTH = 30,17,30,17
-18. Andean_Oscillator = 30,24,25,26
+#VXMA BOT TRADING STRATEGY BY VAZ.
+สามารถตั้งค่าได้ดังต่อไปนี้นี้
+[KEY]
+API_KEY = 
+API_SECRET = 
+LINE_TOKEN = 
+[STAT]
+MIN_BALANCE = $50
+LOST_PER_TARDE = $10 
+RiskReward = 3
+TP_Percent = 50
+Pivot_lookback = 50
+[BOT]
+SYMBOL_NAME = BTC,BTC,BTC
+LEVERAGE = 125,125,125
+TF = 15m,4h,1d
+[TA]
+ATR_Period = 12,19,7
+ATR_Mutiply = 1.6,2,3
+RSI_Period = 25,25,25
+EMA_Fast = 30,30,40
+SUBHAG_LINEAR = 30,30,30
+SMOOTH = 30,30,30
+Andean_Oscillator = 30,30,30
 
-#BY VAZ.
+ในหัวข้อ [BOT] และ [TA] สามารถตั้งได้หลาย ๆ ค่าด้วย คอมม่า  (  , ) 
+โดยจะต้องเรียงลำดับตามที่ต้องการ  (leverage 1,2,3,4 = symbol 1,2,3,4)
+LOST_PER_TARDE  
+ถ้าอยากใช้ % ให้ใช้ตัวเลขธรรมดา 	LOST_PER_TARDE = 5
+ถ้าอยากใช้ $ ให้ใช้ $ นำหน้า	LOST_PER_TARDE = $10
+
+Donate XMR : 87tT3DZqi4mhGuJjEp3Yebi1Wa13Ne6J7RGi9QxU21FkcGGNtFHkfdyLjaPLRv8T2CMrz264iPYQ2dCsJs2MGJ27GnoJFbm

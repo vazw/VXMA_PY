@@ -16,6 +16,7 @@ from tabulate import tabulate
 import logging
 logging.basicConfig(filename='log.log', format='%(asctime)s - %(message)s', level=logging.INFO)
 
+#call config
 config = configparser.ConfigParser()
 config.read('config.ini')
 #key setting
@@ -24,16 +25,15 @@ API_SECRET = config['KEY']['API_SECRET']
 LINE_TOKEN = config['KEY']['LINE_TOKEN']
 notify = LineNotify(LINE_TOKEN)
 #Bot setting
-BOT_NAME = 'VXMA'
-MIN_BALANCE = config['BOT']['MIN_BALANCE']
-SYMBOL_NAME = config['BOT']['SYMBOL_NAME'].split(",")
-LEVERAGE = config['BOT']['LEVERAGE'].split(",")
-TF = config['BOT']['TF'].split(",")
-#STAT setting
+MIN_BALANCE = config['STAT']['MIN_BALANCE']
 RISK = config['STAT']['LOST_PER_TARDE']
 TPRR1 = config['STAT']['RiskReward']
 TPPer = config['STAT']['TP_Percent']
 Pivot = config['STAT']['Pivot_lookback']
+#STAT setting
+SYMBOL_NAME = config['BOT']['SYMBOL_NAME'].split(",")
+LEVERAGE = config['BOT']['LEVERAGE'].split(",")
+TF = config['BOT']['TF'].split(",")
 #TA setting
 ATR_Period = config['TA']['ATR_Period'].split(",")
 ATR_Mutiply = config['TA']['ATR_Mutiply'].split(",")
@@ -43,6 +43,7 @@ LINEAR = config['TA']['SUBHAG_LINEAR'].split(",")
 SMOOTH = config['TA']['SMOOTH'].split(",")
 LengthAO = config['TA']['Andean_Oscillator'].split(",")
 
+BOT_NAME = 'VXMA'
 # API CONNECT
 exchange = ccxt.binance({
 "apiKey": API_KEY,
@@ -75,8 +76,18 @@ if MIN_BALANCE[0]=='$':
     min_balance=float(MIN_BALANCE[1:len(MIN_BALANCE)])
     print("MIN_BALANCE=",min_balance)
 
-wellcome = 'VXMA Bot Started :\n' + messmode + '\nTrading pair : ' + str(SYMBOL_NAME) + '\nTimeframe : ' + str(TF) + '\nBasic Setting\n----------\nRisk : ' + str(RISK) + '\nRisk:Reward : ' + str(TPRR1) + '\nATR Period : ' + str(ATR_Period) + '\nATR Multiply : ' + str(ATR_Mutiply) + '\nRSI  : ' + str(RSI_Period) + '\nEMA  : '+ str(EMA_FAST) + '\nLinear : ' + str(LINEAR) + '\nSmooth : ' + str(SMOOTH) + '\nAndean_Oscillator : ' + str(LengthAO) + '\nBot Will Stop Entry when balance < ' + str(min_balance) + '\nGOODLUCK'
+wellcome = 'VXMA Bot Started :\n' + messmode + '\nTrading pair : ' + str(SYMBOL_NAME) + '\nTimeframe : ' + str(TF) + '\nLeverage : ' + str(LEVERAGE) +'\nBasic Setting\n----------\nRisk : ' + str(RISK) + '\nRisk:Reward : ' + str(TPRR1) + '\nATR Period : ' + str(ATR_Period) + '\nATR Multiply : ' + str(ATR_Mutiply) + '\nRSI  : ' + str(RSI_Period) + '\nEMA  : '+ str(EMA_FAST) + '\nLinear : ' + str(LINEAR) + '\nSmooth : ' + str(SMOOTH) + '\nAndean_Oscillator : ' + str(LengthAO) + '\nBot Will Stop Entry when balance < ' + str(min_balance) + '\nGOODLUCK'
 notify.send(wellcome)
+
+#clearconsol
+def clearconsol():
+    time.sleep(5)
+    # posix is os name for linux or mac
+    if(os.name == 'posix'):
+        os.system('clear')
+    # else screen will be cleared for windows
+    else:
+        os.system('cls') 
 
 #Alphatrend
 def alphatrend(df,atr_p,atr_m,rsi):
@@ -209,7 +220,7 @@ def buysize(df,balance,symbol):
     last = len(df.index) - 1
     exchange.load_markets()
     freeusd = float(balance['free']['USDT'])
-    if RISK[0]=='$':
+    if RISK[0]=='$' :
         risk = float(RISK[1:len(RISK)])
     else :
         percent = float(RISK)
@@ -223,7 +234,7 @@ def sellsize(df,balance,symbol):
     last = len(df.index) - 1
     exchange.load_markets()
     freeusd = float(balance['free']['USDT'])
-    if RISK[0]=='$':
+    if RISK[0]=='$' :
         risk = float(RISK[1:len(RISK)])
     else :
         percent = float(RISK)
@@ -262,6 +273,7 @@ def OpenLong(df,balance,symbol,lev):
     else :
         msg = "MARGIN-CALL!!!\nยอดเงินต่ำกว่าที่กำหนดไว้  : " + str(min_balance)
     notify.send(msg)
+    clearconsol()
     return
     
 def OpenShort(df,balance,symbol,lev):
@@ -284,6 +296,7 @@ def OpenShort(df,balance,symbol,lev):
     else :
         msg = "MARGIN-CALL!!!\nยอดเงินต่ำกว่าที่กำหนดไว้  : " + str(min_balance)
     notify.send(msg)
+    clearconsol()
     return
 
 def CloseLong(df,balance,symbol,status):
@@ -297,6 +310,7 @@ def CloseLong(df,balance,symbol,status):
     total = float(balance['total']['USDT'])
     msg ="BINANCE:\n" + "BOT         : " + BOT_NAME + "\nCoin        : " + symbol + "\nStatus      : " + "CloseLong[SELL]" + "\nAmount    : " + str(amount) +"("+str(round((amount*bid),2))+" USDT)" + "\nPrice        :" + str(bid) + " USDT" + "\nRealized P/L: " + str(round(upnl,2)) + " USDT"  +"\nBalance   :" + str(round(total,2)) + " USDT"
     notify.send(msg)
+    clearconsol()
     return
     
 def CloseShort(df,balance,symbol,status):
@@ -310,17 +324,9 @@ def CloseShort(df,balance,symbol,status):
     total = float(balance['total']['USDT'])
     msg ="BINANCE:\n" + "BOT         : " + BOT_NAME + "\nCoin        : " + symbol + "\nStatus      : " + "CloseShort[BUY]" + "\nAmount    : " + str(amount) +"("+ str(round((amount*ask),2))+" USDT)" + "\nPrice        :" + str(ask) + " USDT" + "\nRealized P/L: " + str(round(upnl,2)) + " USDT"  +"\nBalance   :" + str(round(total,2)) + " USDT"
     notify.send(msg)
+    clearconsol()
     return
 
-#clearconsol
-def clearconsol():
-    time.sleep(10)
-    # posix is os name for linux or mac
-    if(os.name == 'posix'):
-        os.system('clear')
-    # else screen will be cleared for windows
-    else:
-        os.system('cls') 
 
 def check_buy_sell_signals(df,symbol,status,balance,lev):
     longPozisyonda = False
@@ -386,7 +392,7 @@ def run_bot():
         position_bilgi = pd.DataFrame(current_positions, columns=["symbol", "entryPrice","positionSide", "unrealizedProfit", "positionAmt", "initialMargin" ,"isolatedWallet"])
         exchange.load_markets()
         market = exchange.markets[symboli]
-        bars = exchange.fetch_ohlcv(symboli, timeframe=tf, since = None, limit = 500)
+        bars = exchange.fetch_ohlcv(symboli, timeframe=tf, since = None, limit = 1002)
         df = pd.DataFrame(bars[:-1], columns=['timestamp', 'Open', 'High', 'Low', 'Close', 'Volume'])
         df['timestamp'] = pd.to_datetime(df['timestamp'], unit='ms')
         indicator(df,ema,linear,smooth,atr_p,atr_m,rsi,AOL)

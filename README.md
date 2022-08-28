@@ -1,6 +1,7 @@
 
 #VXMA BOT TRADING STRATEGY BY VAZ.
 
+```
 What's this version do?
 |-v.0.1 	= Start from VXMA Pinescript Tradingview.
 |-v.1.0.0	= Start Deploy Fully-Function
@@ -14,8 +15,8 @@ What's this version do?
 |- Try Improve BUY SELL condition and detail
 |- Re-entry when SL and Trend did not changed
 |- Avoid Large Position amount
-
-สามารถตั้งค่าได้ดังต่อไปนี้นี้
+```
+##สามารถตั้งค่าได้ดังต่อไปนี้นี้
 
 ```
 [KEY]
@@ -48,4 +49,4 @@ Andean_Oscillator = 30,30,30
 ถ้าอยากใช้ % ให้ใช้ตัวเลขธรรมดา 	LOST_PER_TARDE = 5
 ถ้าอยากใช้ $ ให้ใช้ $ นำหน้า	LOST_PER_TARDE = $10
 ```
-Donate XMR : 87tT3DZqi4mhGuJjEp3Yebi1Wa13Ne6J7RGi9QxU21FkcGGNtFHkfdyLjaPLRv8T2CMrz264iPYQ2dCsJs2MGJ27GnoJFbm
+###Donate XMR : 87tT3DZqi4mhGuJjEp3Yebi1Wa13Ne6J7RGi9QxU21FkcGGNtFHkfdyLjaPLRv8T2CMrz264iPYQ2dCsJs2MGJ27GnoJFbm

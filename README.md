@@ -11,7 +11,7 @@ This script work on both one-way mode and Hegde mode.
 5. RiskReward = 3
 6. TP_Percent = 50
 7. Pivot_lookback = 50
-8. LOST_PER_TARDE = %2 or $10
+8. LOST_PER_TARDE = 2 or $10 #ใช้ตัวเลขเฉย ๆ = เป็น % ใช้ $ เป็น Fiat.
 9. SYMBOL_NAME = BTC,ETH,XMR,ADA  
 10. LEVERAGE = 125,50,50,25
 11. TF = 15m,1h,4h,1d

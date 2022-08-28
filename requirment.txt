@@ -1,0 +1,9 @@
+flask
+gunicorn
+numpy
+pandas
+pandas-ta
+ccxt
+line_notify
+tabulate
+backtesting

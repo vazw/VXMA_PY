@@ -270,9 +270,8 @@ def OpenLong(df,balance,symbol,lev):
     ask = float(exchange.fetchBidsAsks([symbol])[symbol]['info']['askPrice'])
     exchange.setLeverage(lev,symbol)
     free = float(balance['free']['USDT'])
-    amt = amount*(TPPer+TPPer2/100)
-    amttp1 = amt*(TPPer/TPPer2)
-    amttp2 = amt - amttp1
+    amttp1 = amount*(TPPer/100)
+    amttp2 = amount*(TPPer2/100)
     if free > min_balance :
         order = exchange.createMarketOrder(symbol,'buy',amount,params={'positionSide':Lside})
         logging.info(order)
@@ -304,9 +303,8 @@ def OpenShort(df,balance,symbol,lev):
     bid = float(exchange.fetchBidsAsks([symbol])[symbol]['info']['bidPrice'])
     exchange.setLeverage(lev,symbol)
     free = float(balance['free']['USDT'])
-    amt = amount*(TPPer+TPPer2/100)
-    amttp1 = amt*(TPPer/TPPer2)
-    amttp2 = amt - amttp1
+    amttp1 = amount*(TPPer/100)
+    amttp2 = amount*(TPPer2/100)
     if free > min_balance :
         order = exchange.createMarketOrder(symbol,'sell',amount,params={'positionSide':Sside})
         logging.info(order)

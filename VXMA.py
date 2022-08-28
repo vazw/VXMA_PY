@@ -278,9 +278,9 @@ def OpenLong(df,balance,symbol,lev):
         logging.info(order)
         if USESL :
             if currentMODE['dualSidePosition']:
-                orderSL = exchange.create_order(symbol, 'TRAILING_STOP_MARKET','sell',amount,params ={'callbackRate': callbackRate,'positionSide':Lside})
+                orderSL = exchange.create_order(symbol, 'TRAILING_STOP_MARKET','sell',amount,params ={'activationPrice':ask*0.9 ,'callbackRate': callbackRate,'positionSide':Lside})
             else:
-                orderSL = exchange.create_order(symbol, 'TRAILING_STOP_MARKET','sell',amount,params ={'callbackRate': callbackRate,'reduceOnly': True ,'positionSide':Lside})
+                orderSL = exchange.create_order(symbol, 'TRAILING_STOP_MARKET','sell',amount,params ={'activationPrice':ask*0.9 ,'callbackRate': callbackRate,'reduceOnly': True ,'positionSide':Lside})
                             #exchange.createOrder(symbol,'stop','sell',amount,float(df['Lowest'][len(df.index)-1]),params={'stopPrice':float(df['Lowest'][len(df.index)-1]),'triggerPrice':float(df['Lowest'][len(df.index)-1]),'positionSide':Lside})
             logging.info(orderSL)
         if USETP :
@@ -312,9 +312,9 @@ def OpenShort(df,balance,symbol,lev):
         logging.info(order)
         if USESL :
             if currentMODE['dualSidePosition']:
-                orderSL = exchange.createOrder(symbol,'TRAILING_STOP_MARKET','buy',amount,params ={'callbackRate': callbackRate,'positionSide':Sside})
+                orderSL = exchange.createOrder(symbol,'TRAILING_STOP_MARKET','buy',amount,params ={'activationPrice':bid*1.1 ,'callbackRate': callbackRate,'positionSide':Sside})
             else :
-                orderSL = exchange.createOrder(symbol,'TRAILING_STOP_MARKET','buy',amount,params ={'callbackRate': callbackRate,'reduceOnly': True ,'positionSide':Sside})
+                orderSL = exchange.createOrder(symbol,'TRAILING_STOP_MARKET','buy',amount,params ={'activationPrice':bid*1.1 ,'callbackRate': callbackRate,'reduceOnly': True ,'positionSide':Sside})
             logging.info(orderSL)
         if USETP :
             orderTP = exchange.createOrder(symbol,'TAKE_PROFIT_MARKET','buy',amttp1,float(RRTP(df,symbol,False)),params={'stopPrice':float(RRTP(df,symbol,False)),'triggerPrice':float(RRTP(df,symbol,False)),'positionSide':Sside})

@@ -205,7 +205,7 @@ def indicator(df,ema_period,linear,smooth,atr_p,atr_m,rsi,AOL):
 def buysize(df,balance,symbol):
     last = len(df.index) - 1
     exchange.load_markets()
-    freeusd = balance['free']['USDT']
+    freeusd = float(balance['free']['USDT'])
     if RISK[0]=='%':
         percent = float(RISK[1:len(RISK)])
         risk = (percent/100)*freeusd
@@ -219,7 +219,7 @@ def buysize(df,balance,symbol):
 def sellsize(df,balance,symbol):
     last = len(df.index) - 1
     exchange.load_markets()
-    freeusd = balance['free']['USDT']
+    freeusd = float(balance['free']['USDT'])
     if RISK[0]=='%':
         percent = float(RISK[1:len(RISK)])
         risk = (percent/100)*freeusd
@@ -231,39 +231,26 @@ def sellsize(df,balance,symbol):
     return lot
     
 def RRTP(df,symbol,direction):
-    #buyprice  * (1 + (((Openprice - Lowest)/Openprice))*rrPer) 
-    #sellprice * (1 - (((Highest - Openprice)/ Openprice))*rrPer)
-    # true = long, false = short
     if direction :
-        ask = exchange.fetchBidsAsks([symbol])[symbol]['info']['askPrice']
-        target = ask *(1+((ask-df['Lowest'][len(df.index)-1])/ask)*TPRR1)
+        ask = float(exchange.fetchBidsAsks([symbol])[symbol]['info']['askPrice'])
+        target = ask *(1+((ask-df['Lowest'][len(df.index)-1])/ask)*int(TPRR1))
     else :
-        bid = exchange.fetchBidsAsks([symbol])[symbol]['info']['bidPrice']
-        target = bid *(1-((df['Highest'][len(df.index)-1]-bid)/bid)*TPRR1)
+        bid = float(exchange.fetchBidsAsks([symbol])[symbol]['info']['bidPrice'])
+        target = bid *(1-((df['Highest'][len(df.index)-1]-bid)/bid)*int(TPRR1))
     return target
 
 def OpenLong(df,balance,symbol,lev):
     print('Entry Long')
     amount = float(buysize(df,balance,symbol))
-    ask = exchange.fetchBidsAsks([symbol])[symbol]['info']['askPrice']
-    params = {
-    'stopLoss': {
-        'type': 'market', # or 'limit'
-        'stopLossPrice': str(df['Lowest'][len(df.index)-1]),
-    },
-    'takeProfit': {
-        'type': 'market',
-        'takeProfitPrice': str(RRTP(df,symbol,True)),
-        'quantity': str(amount*int(TPPer)/100),
-    },
-    'positionSide': Lside 
-    }
-    exchange.setLeverage(int(lev),symbol)
-    free = balance['free']['USDT']
+    ask = float(exchange.fetchBidsAsks([symbol])[symbol]['info']['askPrice'])
+    exchange.setLeverage(lev,symbol)
+    free = float(balance['free']['USDT'])
     if free > min_balance :
-        order = exchange.create_order(symbol,'market','buy',amount,params)
+        order = exchange.createMarketOrder(symbol,'buy',amount,params={'takeProfitPrice':float(RRTP(df,symbol,True)), 'positionSide':Lside})
+        orderSL = exchange.createOrder(symbol,'stop','sell',amount,float(df['Lowest'][len(df.index)-1]),params={'stopPrice':float(df['Lowest'][len(df.index)-1]),'triggerPrice':float(df['Lowest'][len(df.index)-1]),'positionSide':Lside})
+        orderTP = exchange.createOrder(symbol,'TAKE_PROFIT_MARKET','sell',amount,float(RRTP(df,symbol,True)),params={'stopPrice':float(RRTP(df,symbol,True)),'triggerPrice':float(RRTP(df,symbol,True)),'positionSide':Lside})
         margin=ask*amount/lev
-        total = balance['total']['USDT']
+        total = float(balance['total']['USDT'])
         msg ="BINANCE:\n" + "BOT         : " + BOT_NAME + "\nCoin        : " + symbol + "\nStatus      : " + "OpenLong[BUY]" + "\nAmount    : " + str(amount) +"("+str(round((amount*ask),2))+" USDT)" + "\nPrice        :" + str(ask) + " USDT" + str(round(margin,2))+  " USDT"+ "\nBalance   :" + str(round(total,2)) + " USDT"
     else :
         msg = "MARGIN-CALL!!!\nยอดเงินต่ำกว่าที่กำหนดไว้  : " + str(min_balance)
@@ -273,25 +260,15 @@ def OpenLong(df,balance,symbol,lev):
 def OpenShort(df,balance,symbol,lev):
     print('Entry Long')
     amount = float(buysize(df,balance,symbol))
-    bid = exchange.fetchBidsAsks([symbol])[symbol]['info']['bidPrice']
-    params = {
-    'stopLoss': {
-        'type': 'market', # or 'limit'
-        'stopLossPrice': str(df['Highest'][len(df.index)-1]),
-    },
-    'takeProfit': {
-        'type': 'market',
-        'takeProfitPrice': str(RRTP(df,symbol,False)),
-        'quantity': str(amount*int(TPPer)/100),
-    },
-    'positionSide': Sside 
-    }
-    exchange.setLeverage(int(lev),symbol)
-    free = balance['free']['USDT']
+    bid = float(exchange.fetchBidsAsks([symbol])[symbol]['info']['bidPrice'])
+    exchange.setLeverage(lev,symbol)
+    free = float(balance['free']['USDT'])
     if free > min_balance :
-        order = exchange.create_order(symbol,'market','sell',amount,params)
+        order = exchange.createMarketOrder(symbol,'sell',amount,params={'takeProfitPrice':float(RRTP(df,symbol,False)),'positionSide':Sside})
+        orderSL = exchange.createOrder(symbol,'stop','buy',amount,float(df['Highest'][len(df.index)-1]),params={'stopPrice':float(df['Highest'][len(df.index)-1]),'triggerPrice':float(df['Highest'][len(df.index)-1]),'positionSide':Sside})
+        orderTP = exchange.createOrder(symbol,'TAKE_PROFIT_MARKET','buy',amount,float(RRTP(df,symbol,False)),params={'stopPrice':float(RRTP(df,symbol,False)),'triggerPrice':float(RRTP(df,symbol,False)),'positionSide':Sside})
         margin=bid*amount/lev
-        total = balance['total']['USDT']
+        total = float(balance['total']['USDT'])
         msg ="BINANCE:\n" + "BOT         : " + BOT_NAME + "\nCoin        : " + symbol + "\nStatus      : " + "OpenShort[SELL]" + "\nAmount    : " + str(amount) +"("+str(round((amount*bid),2))+" USDT)" + "\nPrice        :" + str(bid) + " USDT" + str(round(margin,2))+  " USDT"+ "\nBalance   :" + str(round(total,2)) + " USDT"
     else :
         msg = "MARGIN-CALL!!!\nยอดเงินต่ำกว่าที่กำหนดไว้  : " + str(min_balance)
@@ -301,33 +278,27 @@ def OpenShort(df,balance,symbol,lev):
 def CloseLong(df,balance,symbol,status):
     print('Close Long')
     amount = float(status["positionAmt"][len(status.index) -1])
-    upnl = status["unrealizedProfit"][len(status.index) -1]
-    bid = exchange.fetchBidsAsks([symbol])[symbol]['info']['bidPrice']
-    params = {
-    'positionSide': Lside
-    }
-    order = exchange.create_order(symbol,'market','sell',amount,params)
+    upnl = float(status["unrealizedProfit"][len(status.index) -1])
+    bid = float(exchange.fetchBidsAsks([symbol])[symbol]['info']['bidPrice'])
+    order = exchange.createMarketOrder(symbol,'sell',amount,params={'positionSide':Lside})
     time.sleep(1)
-    total = balance['total']['USDT']
+    total = float(balance['total']['USDT'])
     msg ="BINANCE:\n" + "BOT         : " + BOT_NAME + "\nCoin        : " + symbol + "\nStatus      : " + "CloseLong[SELL]" + "\nAmount    : " + str(amount) +"("+str(round((amount*bid),2))+" USDT)" + "\nPrice        :" + str(bid) + " USDT" + "\nRealized P/L: " + str(round(upnl,2)) + " USDT"  +"\nBalance   :" + str(round(total,2)) + " USDT"
     notify.send(msg)
     return
     
 def CloseShort(df,balance,symbol,status):
     print('Close Short')
-    amount = abs(float(status["positionAmt"][len(status.index) -1])/2)
-    upnl = status["unrealizedProfit"][len(status.index) -1]
-    ask = exchange.fetchBidsAsks([symbol])[symbol]['info']['askPrice']
-    params = {
-    'positionSide': Sside
-    }
-    order = exchange.create_order(symbol,'market','buy',amount,params)
+    amount = abs(float(status["positionAmt"][len(status.index) -1]))
+    upnl = float(status["unrealizedProfit"][len(status.index) -1])
+    ask = float(exchange.fetchBidsAsks([symbol])[symbol]['info']['askPrice'])
+    order = exchange.createMarketOrder(symbol,'buy',amount,params={'positionSide':Sside})
     time.sleep(1)
-    total = balance['total']['USDT']
-    msg ="BINANCE:\n" + "BOT         : " + BOT_NAME + "\nCoin        : " + symbol + "\nStatus      : " + "CloseShort[BUY]" + "\nAmount    : " + str(amount) +"("+str(round((qty_Close*ask),2))+" USDT)" + "\nPrice        :" + str(ask) + " USDT" + "\nRealized P/L: " + str(round(upnl,2)) + " USDT"  +"\nBalance   :" + str(round(total,2)) + " USDT"
+    total = float(balance['total']['USDT'])
+    msg ="BINANCE:\n" + "BOT         : " + BOT_NAME + "\nCoin        : " + symbol + "\nStatus      : " + "CloseShort[BUY]" + "\nAmount    : " + str(amount) +"("+ str(round((amount*ask),2))+" USDT)" + "\nPrice        :" + str(ask) + " USDT" + "\nRealized P/L: " + str(round(upnl,2)) + " USDT"  +"\nBalance   :" + str(round(total,2)) + " USDT"
     notify.send(msg)
-
     return
+
 #clearconsol
 def clearconsol():
     time.sleep(10)
@@ -389,7 +360,7 @@ def run_bot():
         symbolNamei = SYMBOL_NAME[i]
         newSymboli = SYMBOL_NAME[i] + "USDT"
         symboli = SYMBOL_NAME[i] + "/USDT"
-        leveragei = LEVERAGE[i]
+        leveragei = int(LEVERAGE[i])
         ema = int(EMA_FAST[i])
         linear = int(LINEAR[i])
         smooth = int(SMOOTH[i])
@@ -409,8 +380,7 @@ def run_bot():
         print('checking current position on hold...')
         print(tabulate(position_bilgi, headers = 'keys', tablefmt = 'grid'))
         print(f"Fetching new bars for {symboli, tf , dt.now().isoformat()}")
-        CloseShort(df,balance,symboli,position_bilgi)
-        #check_buy_sell_signals(df,symboli,position_bilgi,balance,leveragei)
+        check_buy_sell_signals(df,symboli,position_bilgi,balance,leveragei)
 
 schedule.every(10).seconds.do(run_bot)
 

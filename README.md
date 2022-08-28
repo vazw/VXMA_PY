@@ -1,5 +1,9 @@
+
 #VXMA BOT TRADING STRATEGY BY VAZ.
+
 สามารถตั้งค่าได้ดังต่อไปนี้นี้
+
+```
 [KEY]
 API_KEY = 
 API_SECRET = 
@@ -22,11 +26,12 @@ EMA_Fast = 30,30,40
 SUBHAG_LINEAR = 30,30,30
 SMOOTH = 30,30,30
 Andean_Oscillator = 30,30,30
-
+```
 ในหัวข้อ [BOT] และ [TA] สามารถตั้งได้หลาย ๆ ค่าด้วย คอมม่า  (  , ) 
 โดยจะต้องเรียงลำดับตามที่ต้องการ  (leverage 1,2,3,4 = symbol 1,2,3,4)
-LOST_PER_TARDE  
+								LOST_PER_TARDE  
+```
 ถ้าอยากใช้ % ให้ใช้ตัวเลขธรรมดา 	LOST_PER_TARDE = 5
 ถ้าอยากใช้ $ ให้ใช้ $ นำหน้า	LOST_PER_TARDE = $10
-
+```
 Donate XMR : 87tT3DZqi4mhGuJjEp3Yebi1Wa13Ne6J7RGi9QxU21FkcGGNtFHkfdyLjaPLRv8T2CMrz264iPYQ2dCsJs2MGJ27GnoJFbm

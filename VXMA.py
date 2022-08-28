@@ -1,6 +1,5 @@
 import ccxt
 import time
-from flask import Flask, request
 import pandas as pd
 pd.set_option('display.max_rows', None)
 import pandas_ta as ta
@@ -14,7 +13,8 @@ warnings.filterwarnings('ignore')
 import os
 import math 
 from tabulate import tabulate
-
+import logging
+logging.basicConfig(filename='log.log', format='%(asctime)s - %(message)s', level=logging.INFO)
 
 config = configparser.ConfigParser()
 config.read('config.ini')
@@ -57,6 +57,9 @@ Sside = 'BOTH'
 Lside = 'BOTH'
 messmode = ''
 min_balance = 20
+
+print('VXMA bot (Form Tradingview)By Vaz.')
+print('Donate XMR : 87tT3DZqi4mhGuJjEp3Yebi1Wa13Ne6J7RGi9QxU21FkcGGNtFHkfdyLjaPLRv8T2CMrz264iPYQ2dCsJs2MGJ27GnoJFbm')
 
 currentMODE = exchange.fapiPrivate_get_positionside_dual()
 if currentMODE['dualSidePosition']:
@@ -206,11 +209,11 @@ def buysize(df,balance,symbol):
     last = len(df.index) - 1
     exchange.load_markets()
     freeusd = float(balance['free']['USDT'])
-    if RISK[0]=='%':
-        percent = float(RISK[1:len(RISK)])
-        risk = (percent/100)*freeusd
-    elif RISK[0]=='$':
+    if RISK[0]=='$':
         risk = float(RISK[1:len(RISK)])
+    else :
+        percent = float(RISK)
+        risk = (percent/100)*freeusd
     amount = abs(risk  / (df['Close'][last] - df['Lowest'][last]))
     qty_precision = exchange.markets[symbol]['precision']['amount']
     lot = round(amount,qty_precision)
@@ -220,11 +223,11 @@ def sellsize(df,balance,symbol):
     last = len(df.index) - 1
     exchange.load_markets()
     freeusd = float(balance['free']['USDT'])
-    if RISK[0]=='%':
-        percent = float(RISK[1:len(RISK)])
-        risk = (percent/100)*freeusd
-    elif RISK[0]=='$':
+    if RISK[0]=='$':
         risk = float(RISK[1:len(RISK)])
+    else :
+        percent = float(RISK)
+        risk = (percent/100)*freeusd
     amount = abs(risk  / (df['Highest'][last] - df['Close'][last]))
     qty_precision = exchange.markets[symbol]['precision']['amount']
     lot = round(amount,qty_precision)
@@ -248,7 +251,11 @@ def OpenLong(df,balance,symbol,lev):
     if free > min_balance :
         order = exchange.createMarketOrder(symbol,'buy',amount,params={'takeProfitPrice':float(RRTP(df,symbol,True)), 'positionSide':Lside})
         orderSL = exchange.createOrder(symbol,'stop','sell',amount,float(df['Lowest'][len(df.index)-1]),params={'stopPrice':float(df['Lowest'][len(df.index)-1]),'triggerPrice':float(df['Lowest'][len(df.index)-1]),'positionSide':Lside})
-        orderTP = exchange.createOrder(symbol,'TAKE_PROFIT_MARKET','sell',amount,float(RRTP(df,symbol,True)),params={'stopPrice':float(RRTP(df,symbol,True)),'triggerPrice':float(RRTP(df,symbol,True)),'positionSide':Lside})
+        orderTP = exchange.createOrder(symbol,'TAKE_PROFIT_MARKET','sell',(amount*int(TPPer)/100),float(RRTP(df,symbol,True)),params={'stopPrice':float(RRTP(df,symbol,True)),'triggerPrice':float(RRTP(df,symbol,True)),'positionSide':Lside})
+        logging.info(order)
+        logging.info(orderSL)
+        logging.info(orderTP)
+        time.sleep(1)
         margin=ask*amount/lev
         total = float(balance['total']['USDT'])
         msg ="BINANCE:\n" + "BOT         : " + BOT_NAME + "\nCoin        : " + symbol + "\nStatus      : " + "OpenLong[BUY]" + "\nAmount    : " + str(amount) +"("+str(round((amount*ask),2))+" USDT)" + "\nPrice        :" + str(ask) + " USDT" + str(round(margin,2))+  " USDT"+ "\nBalance   :" + str(round(total,2)) + " USDT"
@@ -266,7 +273,11 @@ def OpenShort(df,balance,symbol,lev):
     if free > min_balance :
         order = exchange.createMarketOrder(symbol,'sell',amount,params={'takeProfitPrice':float(RRTP(df,symbol,False)),'positionSide':Sside})
         orderSL = exchange.createOrder(symbol,'stop','buy',amount,float(df['Highest'][len(df.index)-1]),params={'stopPrice':float(df['Highest'][len(df.index)-1]),'triggerPrice':float(df['Highest'][len(df.index)-1]),'positionSide':Sside})
-        orderTP = exchange.createOrder(symbol,'TAKE_PROFIT_MARKET','buy',amount,float(RRTP(df,symbol,False)),params={'stopPrice':float(RRTP(df,symbol,False)),'triggerPrice':float(RRTP(df,symbol,False)),'positionSide':Sside})
+        orderTP = exchange.createOrder(symbol,'TAKE_PROFIT_MARKET','buy',(amount*int(TPPer)/100),float(RRTP(df,symbol,False)),params={'stopPrice':float(RRTP(df,symbol,False)),'triggerPrice':float(RRTP(df,symbol,False)),'positionSide':Sside})
+        logging.info(order)
+        logging.info(orderSL)
+        logging.info(orderTP)
+        time.sleep(1)
         margin=bid*amount/lev
         total = float(balance['total']['USDT'])
         msg ="BINANCE:\n" + "BOT         : " + BOT_NAME + "\nCoin        : " + symbol + "\nStatus      : " + "OpenShort[SELL]" + "\nAmount    : " + str(amount) +"("+str(round((amount*bid),2))+" USDT)" + "\nPrice        :" + str(bid) + " USDT" + str(round(margin,2))+  " USDT"+ "\nBalance   :" + str(round(total,2)) + " USDT"
@@ -282,6 +293,7 @@ def CloseLong(df,balance,symbol,status):
     bid = float(exchange.fetchBidsAsks([symbol])[symbol]['info']['bidPrice'])
     order = exchange.createMarketOrder(symbol,'sell',amount,params={'positionSide':Lside})
     time.sleep(1)
+    logging.info(order)
     total = float(balance['total']['USDT'])
     msg ="BINANCE:\n" + "BOT         : " + BOT_NAME + "\nCoin        : " + symbol + "\nStatus      : " + "CloseLong[SELL]" + "\nAmount    : " + str(amount) +"("+str(round((amount*bid),2))+" USDT)" + "\nPrice        :" + str(bid) + " USDT" + "\nRealized P/L: " + str(round(upnl,2)) + " USDT"  +"\nBalance   :" + str(round(total,2)) + " USDT"
     notify.send(msg)
@@ -294,6 +306,7 @@ def CloseShort(df,balance,symbol,status):
     ask = float(exchange.fetchBidsAsks([symbol])[symbol]['info']['askPrice'])
     order = exchange.createMarketOrder(symbol,'buy',amount,params={'positionSide':Sside})
     time.sleep(1)
+    logging.info(order)
     total = float(balance['total']['USDT'])
     msg ="BINANCE:\n" + "BOT         : " + BOT_NAME + "\nCoin        : " + symbol + "\nStatus      : " + "CloseShort[BUY]" + "\nAmount    : " + str(amount) +"("+ str(round((amount*ask),2))+" USDT)" + "\nPrice        :" + str(ask) + " USDT" + "\nRealized P/L: " + str(round(upnl,2)) + " USDT"  +"\nBalance   :" + str(round(total,2)) + " USDT"
     notify.send(msg)

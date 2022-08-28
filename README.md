@@ -1,6 +1,20 @@
 
 #VXMA BOT TRADING STRATEGY BY VAZ.
 
+What's this version do?
+|-v.0.1 	= Start from VXMA Pinescript Tradingview.
+|-v.1.0.0	= Start Deploy Fully-Function
+|-v.1.0.1	= Fix order params and add TP/SL Order
+|-v.1.1		= Fix config.ini found '\n'
+|NEXT ???
+|- BUY AND SELL SWITCH 
+|- TP2
+|- TP AND SL SWITCH
+|- Try Binance Tailing-STOP
+|- Try Improve BUY SELL condition and detail
+|- Re-entry when SL and Trend did not changed
+|- Avoid Large Position amount
+
 สามารถตั้งค่าได้ดังต่อไปนี้นี้
 
 ```

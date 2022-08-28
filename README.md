@@ -21,6 +21,11 @@ API_KEY =
 API_SECRET = 
 LINE_TOKEN = 
 [STAT]
+OPEN_LONG = True
+OPEN_SHORT = True
+USE_TP = True
+USE_SL = True
+callbackRate = 3
 MIN_BALANCE = $50
 LOST_PER_TARDE = $10 
 RiskReward = 3

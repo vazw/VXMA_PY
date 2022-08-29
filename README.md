@@ -6,12 +6,12 @@ What's this version do?
 |-v.1.0.1	= Fix order params and add TP/SL Order
 |-v.1.1		= Fix config.ini found '\n'
 |-V.1.2		= BUY AND SELL SWITCH 
-|- 			TP2
-|- 			TP AND SL SWITCH
-|- 			Try Binance Tailing-STOP
-|- 			Try Improve BUY SELL condition and detail
+|- 			+TP AND SL SWITCH 
+|- 			+TP2
+|- 			+Try Improve BUY SELL condition and detail
 |-v.1.2.1 = fix TP formula.
-|-v.1.2.2 = TailingStopMarket order
+|-v.1.2.2 = TailingStopMarket order fully-function.
+|- 			
 |NEXT ???
 |- Re-entry when SL and Trend did not changed
 |- Avoid Large Position amount

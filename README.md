@@ -11,6 +11,7 @@ What's this version do?
 |- 			Try Binance Tailing-STOP
 |- 			Try Improve BUY SELL condition and detail
 |-v.1.2.1 = fix TP formula.
+|-v.1.2.2 = TailingStopMarket order
 |NEXT ???
 |- Re-entry when SL and Trend did not changed
 |- Avoid Large Position amount

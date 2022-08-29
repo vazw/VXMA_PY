@@ -29,7 +29,7 @@ USELONG = config['STAT']['OPEN_LONG']
 USESHORT = config['STAT']['OPEN_SHORT']
 USETP = config['STAT']['USE_TP']
 USESL = config['STAT']['USE_SL']
-callbackRate = float(config['STAT']['callbackRate'])
+Tailing_SL = config['STAT']['Tailing_SL']
 MIN_BALANCE = config['STAT']['MIN_BALANCE']
 RISK = config['STAT']['LOST_PER_TARDE']
 TPRR1 = config['STAT']['RiskReward_TP1']
@@ -64,7 +64,7 @@ exchange = ccxt.binance({
 Sside = 'BOTH'
 Lside = 'BOTH'
 messmode = ''
-min_balance = 20
+min_balance = 50
 
 print('VXMA bot (Form Tradingview)By Vaz.')
 print('Donate XMR : 87tT3DZqi4mhGuJjEp3Yebi1Wa13Ne6J7RGi9QxU21FkcGGNtFHkfdyLjaPLRv8T2CMrz264iPYQ2dCsJs2MGJ27GnoJFbm')
@@ -162,26 +162,26 @@ def vxma(df):
         ALPHATREND = df['alphatrend'][before]
         clohi = max(EMAFAST,LINREG,ALPHATREND)
         clolo = min(EMAFAST,LINREG,ALPHATREND)
-#CloudMA := (bull > bear) ? clolo < nz(CloudMA[1]) ? nz(CloudMA[1]) : clolo :
+            #CloudMA := (bull > bear) ? clolo < nz(CloudMA[1]) ? nz(CloudMA[1]) : clolo :
         if df['cmpbull'][current] > df['cmpbear'][current] :
             if clolo < (df['vxma'][previous] if df['vxma'][previous] != None else 0):
                 df['vxma'][current] = (df['vxma'][previous] if df['vxma'][previous] != None else 0)
             else : df['vxma'][current] = clolo
-#  (bear > bull) ? clohi > nz(CloudMA[1]) ? nz(CloudMA[1]) : clohi : nz(CloudMA[1])
+            #  (bear > bull) ? clohi > nz(CloudMA[1]) ? nz(CloudMA[1]) : clohi : nz(CloudMA[1])
         elif df['cmpbull'][current] < df['cmpbear'][current]:
             if clohi > (df['vxma'][previous] if df['vxma'][previous] != None else 0):
                 df['vxma'][current] = (df['vxma'][previous] if df['vxma'][previous] != None else 0)
             else : df['vxma'][current] = clohi
         else:
             df['vxma'][current] = (df['vxma'][previous] if df['vxma'][previous] != None else 0)
-        #Get trend True = Bull False = Bear
+            #Get trend True = Bull False = Bear
         if df['vxma'][current] > df['vxma'][previous] and df['vxma'][previous] > df['vxma'][before] :
             df['trend'][current] = True
         elif df['vxma'][current] < df['vxma'][previous] and df['vxma'][previous] < df['vxma'][before] :
             df['trend'][current] = False
         else:
             df['trend'][current] = df['trend'][previous] 
-        #get zone
+            #get zone
         if df['trend'][current] and not df['trend'][previous] :
             df['buy'][current] = True
             df['sell'][current] = False
@@ -213,9 +213,6 @@ def indicator(df,ema_period,linear,smooth,atr_p,atr_m,rsi,AOL):
     andean(df,AOL)
     pivot(df)
     vxma(df)
-    df.drop(columns=['ema','subhag','atr','up2'], axis=1,inplace=True)
-    df.drop(columns=['downT','upT','alphatrend','dn1'], axis=1,inplace=True)
-    df.drop(columns=['cmpbull','cmpbear','up1','dn2'], axis=1,inplace=True)
     return df
 #Position Sizing
 def buysize(df,balance,symbol):
@@ -262,7 +259,23 @@ def RRTP(df,symbol,direction,step):
             bid = float(exchange.fetchBidsAsks([symbol])[symbol]['info']['bidPrice'])
             target = bid *(1-((df['Highest'][len(df.index)-1]-bid)/bid)*float(TPRR2))    
     return target
-    
+
+def RR1(df,symbol,direction):
+    if direction :
+        ask = float(exchange.fetchBidsAsks([symbol])[symbol]['info']['askPrice'])
+        target = ask *(1+((ask-df['Lowest'][len(df.index)-1])/ask)*1)
+    else :
+        bid = float(exchange.fetchBidsAsks([symbol])[symbol]['info']['bidPrice'])
+        target = bid *(1-((df['Highest'][len(df.index)-1]-bid)/bid)*1)
+    return target
+
+def callbackRate(df):
+    rate = round((df['Highest'][len(df.index)-1]-df['Lowest'][len(df.index)-1])/df['Highest'][len(df.index)-1]*100,1)
+    if rate > 5 :
+        rate = 5
+    elif rate < 0.1 :
+        rate = 0.1
+    return rate 
 
 #OpenLong=Buy
 def OpenLong(df,balance,symbol,lev):
@@ -278,14 +291,19 @@ def OpenLong(df,balance,symbol,lev):
         logging.info(order)
         if USESL :
             if currentMODE['dualSidePosition']:
-                orderSL = exchange.create_order(symbol, 'TRAILING_STOP_MARKET','sell',amount,params ={'activationPrice':float(df['Highest'][len(df.index)-1]) ,'callbackRate': callbackRate,'positionSide':Lside})
+                orderSL         = exchange.create_order(symbol,'stop','sell',amount,float(df['Lowest'][len(df.index)-1]),params={'stopPrice':float(df['Lowest'][len(df.index)-1]),'triggerPrice':float(df['Lowest'][len(df.index)-1]),'positionSide':Lside})
+                if Tailing_SL :
+                    ordertailingSL  = exchange.create_order(symbol, 'TRAILING_STOP_MARKET','sell',amount,params ={'activationPrice':float(RR1(df,symbol,True)) ,'callbackRate': float(callbackRate(df)),'positionSide':Lside})
             else:
-                orderSL = exchange.create_order(symbol, 'TRAILING_STOP_MARKET','sell',amount,params ={'activationPrice':float(df['Highest'][len(df.index)-1]) ,'callbackRate': callbackRate,'reduceOnly': True ,'positionSide':Lside})
-                            #exchange.createOrder(symbol,'stop','sell',amount,float(df['Lowest'][len(df.index)-1]),params={'stopPrice':float(df['Lowest'][len(df.index)-1]),'triggerPrice':float(df['Lowest'][len(df.index)-1]),'positionSide':Lside})
+                orderSL         = exchange.create_order(symbol,'stop','sell',amount,float(df['Lowest'][len(df.index)-1]),params={'stopPrice':float(df['Lowest'][len(df.index)-1]),'triggerPrice':float(df['Lowest'][len(df.index)-1]),'reduceOnly': True ,'positionSide':Lside})
+                if Tailing_SL :
+                    ordertailingSL  = exchange.create_order(symbol, 'TRAILING_STOP_MARKET','sell',amount,params ={'activationPrice':float(RR1(df,symbol,True)) ,'callbackRate': float(callbackRate(df)),'reduceOnly': True ,'positionSide':Lside})
+            if Tailing_SL :
+                logging.info(ordertailingSL)
             logging.info(orderSL)
         if USETP :
-            orderTP = exchange.createOrder(symbol,'TAKE_PROFIT_MARKET','sell',amttp1,float(RRTP(df,symbol,True,1)),params={'stopPrice':float(RRTP(df,symbol,True,1)),'triggerPrice':float(RRTP(df,symbol,True,1)),'positionSide':Lside})
-            orderTP2 = exchange.createOrder(symbol,'TAKE_PROFIT_MARKET','sell',amttp2,float(RRTP(df,symbol,True,2)),params={'stopPrice':float(RRTP(df,symbol,True,2)),'triggerPrice':float(RRTP(df,symbol,True,2)),'positionSide':Lside})
+            orderTP  = exchange.create_order(symbol,'TAKE_PROFIT_MARKET','sell',amttp1,float(RRTP(df,symbol,True,1)),params={'stopPrice':float(RRTP(df,symbol,True,1)),'triggerPrice':float(RRTP(df,symbol,True,1)),'positionSide':Lside})
+            orderTP2 = exchange.create_order(symbol,'TAKE_PROFIT_MARKET','sell',amttp2,float(RRTP(df,symbol,True,2)),params={'stopPrice':float(RRTP(df,symbol,True,2)),'triggerPrice':float(RRTP(df,symbol,True,2)),'positionSide':Lside})
             logging.info(orderTP)
             logging.info(orderTP2)
         time.sleep(1)
@@ -311,14 +329,20 @@ def OpenShort(df,balance,symbol,lev):
         logging.info(order)
         if USESL :
             if currentMODE['dualSidePosition']:
-                orderSL = exchange.createOrder(symbol,'TRAILING_STOP_MARKET','buy',amount,params ={'activationPrice':float(df['Lowest'][len(df.index)-1]) ,'callbackRate': callbackRate,'positionSide':Sside})
+                orderSL         = exchange.create_order(symbol,'stop','buy',amount,float(df['Highest'][len(df.index)-1]),params={'stopPrice':float(df['Highest'][len(df.index)-1]),'triggerPrice':float(df['Highest'][len(df.index)-1]),'positionSide':Sside})
+                if Tailing_SL :
+                    ordertailingSL  = exchange.create_order(symbol,'TRAILING_STOP_MARKET','buy',amount,params ={'activationPrice':float(RR1(df,symbol,False)) ,'callbackRate': float(callbackRate(df)),'positionSide':Sside})
             else :
-                orderSL = exchange.createOrder(symbol,'TRAILING_STOP_MARKET','buy',amount,params ={'activationPrice':float(df['Lowest'][len(df.index)-1]) ,'callbackRate': callbackRate,'reduceOnly': True ,'positionSide':Sside})
+                orderSL         = exchange.create_order(symbol,'stop','buy',amount,float(df['Highest'][len(df.index)-1]),params={'stopPrice':float(df['Highest'][len(df.index)-1]),'triggerPrice':float(df['Highest'][len(df.index)-1]),'reduceOnly': True ,'positionSide':Sside})
+                if Tailing_SL :
+                    ordertailingSL  = exchange.create_order(symbol,'TRAILING_STOP_MARKET','buy',amount,params ={'activationPrice':float(RR1(df,symbol,False)) ,'callbackRate': float(callbackRate(df)),'reduceOnly': True ,'positionSide':Sside})
+            if Tailing_SL :    
+                logging.info(ordertailingSL)
             logging.info(orderSL)
         if USETP :
-            orderTP = exchange.createOrder(symbol,'TAKE_PROFIT_MARKET','buy',amttp1,float(RRTP(df,symbol,False,1)),params={'stopPrice':float(RRTP(df,symbol,False,1)),'triggerPrice':float(RRTP(df,symbol,False,1)),'positionSide':Sside})
+            orderTP = exchange.create_order(symbol,'TAKE_PROFIT_MARKET','buy',amttp1,float(RRTP(df,symbol,False,1)),params={'stopPrice':float(RRTP(df,symbol,False,1)),'triggerPrice':float(RRTP(df,symbol,False,1)),'positionSide':Sside})
             logging.info(orderTP)
-            orderTP2 = exchange.createOrder(symbol,'TAKE_PROFIT_MARKET','buy',amttp2,float(RRTP(df,symbol,False,2)),params={'stopPrice':float(RRTP(df,symbol,False,2)),'triggerPrice':float(RRTP(df,symbol,False,2)),'positionSide':Sside})
+            orderTP2 = exchange.create_order(symbol,'TAKE_PROFIT_MARKET','buy',amttp2,float(RRTP(df,symbol,False,2)),params={'stopPrice':float(RRTP(df,symbol,False,2)),'triggerPrice':float(RRTP(df,symbol,False,2)),'positionSide':Sside})
             logging.info(orderTP2)
         time.sleep(1)
         margin=bid*amount/lev
@@ -362,7 +386,6 @@ def check_buy_sell_signals(df,symbol,status,balance,lev):
     is_in_Long = False
     is_in_Short = False
     is_in_position = False
-    print(df.tail(10))
     last = len(df.index) -1
     previous = last - 1
     # NO Position
@@ -380,12 +403,15 @@ def check_buy_sell_signals(df,symbol,status,balance,lev):
     if is_in_position and float(status["positionAmt"][len(status.index) -1]) < 0:
         is_in_Short = True
         is_in_Long = False
+    print(df.tail(3))    
     print("checking for buy and sell signals")
     if df['buy'][last]:
         print("changed to Bullish, buy")
         if is_in_Short :
             CloseShort(df,balance,symbol,status)
         if not is_in_Long and USELONG:
+            exchange.cancel_all_orders(symbol)
+            time.sleep(1)
             OpenLong(df,balance,symbol,lev)
             is_in_Long = True
         else:
@@ -395,6 +421,8 @@ def check_buy_sell_signals(df,symbol,status,balance,lev):
         if is_in_Long :
             CloseLong(df,balance,symbol,status)
         if not is_in_Short and USESHORT :
+            exchange.cancel_all_orders(symbol)
+            time.sleep(1)
             OpenShort(df,balance,symbol,lev)
             is_in_Short = True
         else:
@@ -419,7 +447,6 @@ def run_bot():
         current_positions = [position for position in positions if float(position['positionAmt']) != 0 and position['symbol'] == newSymboli]
         position_bilgi = pd.DataFrame(current_positions, columns=["symbol", "entryPrice","positionSide", "unrealizedProfit", "positionAmt", "initialMargin" ,"isolatedWallet"])
         exchange.load_markets()
-        market = exchange.markets[symboli]
         bars = exchange.fetch_ohlcv(symboli, timeframe=tf, since = None, limit = 1002)
         df = pd.DataFrame(bars[:-1], columns=['timestamp', 'Open', 'High', 'Low', 'Close', 'Volume'])
         df['timestamp'] = pd.to_datetime(df['timestamp'], unit='ms')
@@ -429,8 +456,9 @@ def run_bot():
         print(f"Fetching new bars for {symboli , tf , dt.now().isoformat()}")
         check_buy_sell_signals(df,symboli,position_bilgi,balance,leveragei)
 
+
 schedule.every(10).seconds.do(run_bot)
 
 while True:
     schedule.run_pending()
-    time.sleep(10)
+    time.sleep(5)

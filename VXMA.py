@@ -1,3 +1,6 @@
+from ast import If
+from platform import mac_ver
+from turtle import title
 import ccxt
 import time
 import pandas as pd
@@ -14,8 +17,11 @@ import os
 import math 
 from tabulate import tabulate
 import logging
-logging.basicConfig(filename='log.log', format='%(asctime)s - %(message)s', level=logging.INFO)
+import mplfinance as mplf
 
+logging.basicConfig(filename='log.log', format='%(asctime)s - %(message)s', level=logging.INFO)
+print('VXMA bot (Form Tradingview)By Vaz.')
+print('Donate XMR : 87tT3DZqi4mhGuJjEp3Yebi1Wa13Ne6J7RGi9QxU21FkcGGNtFHkfdyLjaPLRv8T2CMrz264iPYQ2dCsJs2MGJ27GnoJFbm')
 #call config
 config = configparser.ConfigParser()
 config.read('config.ini')
@@ -25,8 +31,8 @@ API_SECRET = config['KEY']['API_SECRET']
 LINE_TOKEN = config['KEY']['LINE_TOKEN']
 notify = LineNotify(LINE_TOKEN)
 #Bot setting
-USELONG = config['STAT']['OPEN_LONG']
-USESHORT = config['STAT']['OPEN_SHORT']
+USELONG = config['STAT']['Open_LONG']
+USESHORT = config['STAT']['Open_SHORT']
 USETP = config['STAT']['USE_TP']
 USESL = config['STAT']['USE_SL']
 Tailing_SL = config['STAT']['Tailing_SL']
@@ -66,8 +72,7 @@ Lside = 'BOTH'
 messmode = ''
 min_balance = 50
 
-print('VXMA bot (Form Tradingview)By Vaz.')
-print('Donate XMR : 87tT3DZqi4mhGuJjEp3Yebi1Wa13Ne6J7RGi9QxU21FkcGGNtFHkfdyLjaPLRv8T2CMrz264iPYQ2dCsJs2MGJ27GnoJFbm')
+
 
 currentMODE = exchange.fapiPrivate_get_positionside_dual()
 if currentMODE['dualSidePosition']:
@@ -85,6 +90,15 @@ if MIN_BALANCE[0]=='$':
 
 wellcome = 'VXMA Bot Started :\n' + messmode + '\nTrading pair : ' + str(SYMBOL_NAME) + '\nTimeframe : ' + str(TF) + '\nLeverage : ' + str(LEVERAGE) +'\nBasic Setting\n----------\nRisk : ' + str(RISK) + '\nRisk:Reward : ' + str(TPRR1) + '\nATR Period : ' + str(ATR_Period) + '\nATR Multiply : ' + str(ATR_Mutiply) + '\nRSI  : ' + str(RSI_Period) + '\nEMA  : '+ str(EMA_FAST) + '\nLinear : ' + str(LINEAR) + '\nSmooth : ' + str(SMOOTH) + '\nAndean_Oscillator : ' + str(LengthAO) + '\nBot Will Stop Entry when balance < ' + str(min_balance) + '\nGOODLUCK'
 notify.send(wellcome)
+
+def candle(df,symbol):
+    data = df.tail(365)
+    s = mplf.make_mpf_style(base_mpf_style='yahoo', rc={'font.size': 11},y_on_right=True)
+    vxmal = mplf.make_addplot(data.vxma,secondary_y=False,color='yellow')
+    mplf.plot(data,type='candle',title=symbol,addplot=vxmal, style=s,volume=True,savefig='candle.png')
+    time.sleep(1/2)
+    notify.send(f'info : {symbol}',image_path=('./candle.png'))
+    return 
 
 #clearconsol
 def clearconsol():
@@ -311,8 +325,9 @@ def OpenLong(df,balance,symbol,lev):
         total = float(balance['total']['USDT'])
         msg ="BINANCE:\n" + "BOT         : " + BOT_NAME + "\nCoin        : " + symbol + "\nStatus      : " + "OpenLong[BUY]" + "\nAmount    : " + str(amount) +"("+str(round((amount*ask),2))+" USDT)" + "\nPrice        :" + str(ask) + " USDT" + str(round(margin,2))+  " USDT"+ "\nBalance   :" + str(round(total,2)) + " USDT"
     else :
-        msg = "MARGIN-CALL!!!\nยอดเงินต่ำกว่าที่กำหนดไว้  : " + str(min_balance)
+        msg = "MARGIN-CALL!!!\nยอดเงินต่ำกว่าที่กำหนดไว้  : " + str(min_balance) + '\nยอดปัจจุบัน' + str(free) + 'USD\nบอทจะทำการยกเลิกการเข้า Position ทั้งหมด' 
     notify.send(msg)
+    candle(df,symbol)
     clearconsol()
     return
 #OpenShort=Sell
@@ -349,8 +364,9 @@ def OpenShort(df,balance,symbol,lev):
         total = float(balance['total']['USDT'])
         msg ="BINANCE:\n" + "BOT         : " + BOT_NAME + "\nCoin        : " + symbol + "\nStatus      : " + "OpenShort[SELL]" + "\nAmount    : " + str(amount) +"("+str(round((amount*bid),2))+" USDT)" + "\nPrice        :" + str(bid) + " USDT" + str(round(margin,2))+  " USDT"+ "\nBalance   :" + str(round(total,2)) + " USDT"
     else :
-        msg = "MARGIN-CALL!!!\nยอดเงินต่ำกว่าที่กำหนดไว้  : " + str(min_balance)
+        msg = "MARGIN-CALL!!!\nยอดเงินต่ำกว่าที่กำหนดไว้  : " + str(min_balance) + '\nยอดปัจจุบัน' + str(free) + 'USD\nบอทจะทำการยกเลิกการเข้า Position ทั้งหมด' 
     notify.send(msg)
+    candle(df,symbol)
     clearconsol()
     return
 #CloseLong=Sell
@@ -365,13 +381,14 @@ def CloseLong(df,balance,symbol,status):
     total = float(balance['total']['USDT'])
     msg ="BINANCE:\n" + "BOT         : " + BOT_NAME + "\nCoin        : " + symbol + "\nStatus      : " + "CloseLong[SELL]" + "\nAmount    : " + str(amount) +"("+str(round((amount*bid),2))+" USDT)" + "\nPrice        :" + str(bid) + " USDT" + "\nRealized P/L: " + str(round(upnl,2)) + " USDT"  +"\nBalance   :" + str(round(total,2)) + " USDT"
     notify.send(msg)
+    candle(df,symbol)
     clearconsol()
     return
 #CloseShort=Buy
 def CloseShort(df,balance,symbol,status):
     print('Close Short')
-    amount = abs(float(status["positionAmt"][len(status.index) -1]))
-    upnl = float(status["unrealizedProfit"][len(status.index) -1])
+    amount = abs(float(status["positionAmt"][len(status.index) -1] if status["symbol"][len(status.index) -1] == symbol else status["positionAmt"][len(status.index) -1]))
+    upnl = float(status["unrealizedProfit"][len(status.index) -1] if status["symbol"][len(status.index) -1] == symbol else status["positionAmt"][len(status.index) -1])
     ask = float(exchange.fetchBidsAsks([symbol])[symbol]['info']['askPrice'])
     order = exchange.createMarketOrder(symbol,'buy',amount,params={'positionSide':Sside})
     time.sleep(1)
@@ -380,6 +397,7 @@ def CloseShort(df,balance,symbol,status):
     msg ="BINANCE:\n" + "BOT         : " + BOT_NAME + "\nCoin        : " + symbol + "\nStatus      : " + "CloseShort[BUY]" + "\nAmount    : " + str(amount) +"("+ str(round((amount*ask),2))+" USDT)" + "\nPrice        :" + str(ask) + " USDT" + "\nRealized P/L: " + str(round(upnl,2)) + " USDT"  +"\nBalance   :" + str(round(total,2)) + " USDT"
     notify.send(msg)
     clearconsol()
+    candle(df,symbol)
     return
 
 def check_buy_sell_signals(df,symbol,status,balance,lev):
@@ -389,21 +407,21 @@ def check_buy_sell_signals(df,symbol,status,balance,lev):
     last = len(df.index) -1
     previous = last - 1
     # NO Position
-    if not status.empty and status["positionAmt"][len(status.index) -1] != 0:
+    if not status.empty and status["positionAmt"][len(status.index) -1] != 0 and status["symbol"][len(status.index) -1] == symbol :
         is_in_position = True
     else: 
         is_in_position = False
         is_in_Short = False
         is_in_Long = False
     # Long position
-    if is_in_position and float(status["positionAmt"][len(status.index) -1]) > 0:
+    if is_in_position and float(status["positionAmt"][len(status.index) -1]) > 0 and status["symbol"][len(status.index) -1] == symbol :
         is_in_Long = True
         is_in_Short = False
     # Short position
-    if is_in_position and float(status["positionAmt"][len(status.index) -1]) < 0:
+    if is_in_position and float(status["positionAmt"][len(status.index) -1]) < 0 and status["symbol"][len(status.index) -1] == symbol :
         is_in_Short = True
         is_in_Long = False
-    print(df.tail(3))    
+    print(df.tail(4))    
     print("checking for buy and sell signals")
     if df['buy'][last]:
         print("changed to Bullish, buy")
@@ -433,9 +451,8 @@ def run_bot():
     exchange.precisionMode = ccxt.DECIMAL_PLACES
     positions = balance['info']['positions']
     for i in range(len(SYMBOL_NAME)):
-        newSymboli = SYMBOL_NAME[i] + "USDT"
-        symboli = SYMBOL_NAME[i] + "/USDT"
-        leveragei = int(LEVERAGE[i])
+        symbol = SYMBOL_NAME[i] + "/USDT"
+        leverage = int(LEVERAGE[i])
         ema = int(EMA_FAST[i])
         linear = int(LINEAR[i])
         smooth = int(SMOOTH[i])
@@ -444,20 +461,21 @@ def run_bot():
         rsi = int(RSI_Period[i])
         AOL = int(LengthAO[i])
         tf = TF[i]
-        current_positions = [position for position in positions if float(position['positionAmt']) != 0 and position['symbol'] == newSymboli]
+        current_positions = [position for position in positions if float(position['positionAmt']) != 0]
         position_bilgi = pd.DataFrame(current_positions, columns=["symbol", "entryPrice","positionSide", "unrealizedProfit", "positionAmt", "initialMargin" ,"isolatedWallet"])
         exchange.load_markets()
-        bars = exchange.fetch_ohlcv(symboli, timeframe=tf, since = None, limit = 1002)
+        bars = exchange.fetch_ohlcv(symbol, timeframe=tf, since = None, limit = 1002)
         df = pd.DataFrame(bars[:-1], columns=['timestamp', 'Open', 'High', 'Low', 'Close', 'Volume'])
         df['timestamp'] = pd.to_datetime(df['timestamp'], unit='ms')
+        df = df.set_index('timestamp')
         indicator(df,ema,linear,smooth,atr_p,atr_m,rsi,AOL)
         print('checking current position on hold...')
         print(tabulate(position_bilgi, headers = 'keys', tablefmt = 'grid'))
-        print(f"Fetching new bars for {symboli , tf , dt.now().isoformat()}")
-        check_buy_sell_signals(df,symboli,position_bilgi,balance,leveragei)
+        print(f"Fetching new bars for {symbol , tf , dt.now().isoformat()}")
+        check_buy_sell_signals(df,symbol,position_bilgi,balance,leverage)
+        candle(df,symbol)
 
-
-schedule.every(10).seconds.do(run_bot)
+schedule.every(5).seconds.do(run_bot)
 
 while True:
     schedule.run_pending()

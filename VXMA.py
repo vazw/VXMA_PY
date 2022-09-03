@@ -34,7 +34,7 @@ USESL = config['STAT']['USE_SL']
 Tailing_SL = config['STAT']['Tailing_SL']
 MIN_BALANCE = config['STAT']['MIN_BALANCE']
 RISK = config['STAT']['LOST_PER_TARDE']
-Max_Size = float(config['STAT']['MAX_Margin_USE'])
+Max_Size = config['STAT']['MAX_Margin_USE']
 TPRR1 = config['STAT']['RiskReward_TP1']
 TPRR2 = config['STAT']['RiskReward_TP2']
 TPPer = int(config['STAT']['Percent_TP1'])
@@ -68,7 +68,8 @@ Sside = 'BOTH'
 Lside = 'BOTH'
 messmode = ''
 min_balance = 50
-
+if Max_Size[0]=='$' :
+    Max_Size = float(Max_Size[1:len(Max_Size)])
 
 
 currentMODE = exchange.fapiPrivate_get_positionside_dual()
@@ -83,9 +84,10 @@ else:
 
 if MIN_BALANCE[0]=='$':
     min_balance=float(MIN_BALANCE[1:len(MIN_BALANCE)])
-    print("MIN_BALANCE=",min_balance)
+    print(f"MIN_BALANCE= {min_balance} USDT")
+    print(f"MAX MARGIN= {Max_Size} USDT")
 
-wellcome = 'VXMA Bot Started :\n' + messmode + '\nTrading pair : ' + str(SYMBOL_NAME) + '\nTimeframe : ' + str(TF) + '\nLeverage : ' + str(LEVERAGE) +'\nBasic Setting\n----------\nRisk : ' + str(RISK) + '\nRisk:Reward : ' + str(TPRR1) + '\nATR Period : ' + str(ATR_Period) + '\nATR Multiply : ' + str(ATR_Mutiply) + '\nRSI  : ' + str(RSI_Period) + '\nEMA  : '+ str(EMA_FAST) + '\nLinear : ' + str(LINEAR) + '\nSmooth : ' + str(SMOOTH) + '\nAndean_Oscillator : ' + str(LengthAO) + '\nBot Will Stop Entry when balance < ' + str(min_balance) + '\nGOODLUCK'
+wellcome = 'VXMA Bot Started :\n' + messmode + '\nTrading pair : ' + str(SYMBOL_NAME) + '\nTimeframe : ' + str(TF) + '\nLeverage : ' + str(LEVERAGE) +'\nBasic Setting\n----------\nRisk : ' + str(RISK) + f'\nMax Margin : {Max_Size} USDT\nRisk:Reward : ' + str(TPRR1) + '\nATR Period : ' + str(ATR_Period) + '\nATR Multiply : ' + str(ATR_Mutiply) + '\nRSI  : ' + str(RSI_Period) + '\nEMA  : '+ str(EMA_FAST) + '\nLinear : ' + str(LINEAR) + '\nSmooth : ' + str(SMOOTH) + '\nAndean_Oscillator : ' + str(LengthAO) + '\nBot Will Stop Entry when balance < ' + str(min_balance) + '\nGOODLUCK'
 notify.send(wellcome)
 
 def candle(df,symbol):

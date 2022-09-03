@@ -448,7 +448,6 @@ def check_buy_sell_signals(df,symbol,status,balance,lev):
     is_in_Short = False
     is_in_position = False
     last = len(df.index) -1
-    previous = last - 1
     posim = symbol.replace('/','')
     amt = 0.0
     upnl = 0.0
@@ -497,10 +496,13 @@ def check_buy_sell_signals(df,symbol,status,balance,lev):
         else:
             print("already in position, nothing to do")
 
+aldynoti = False
+
 def main():
+    global aldynoti
     balance = exchange.fetch_balance()    
     exchange.precisionMode = ccxt.DECIMAL_PLACES
-    positions = balance['info']['positions']
+    positions = balance['info']['positions']  
     for i in range(len(SYMBOL_NAME)):
         symbol = SYMBOL_NAME[i] + "/USDT"
         leverage = int(LEVERAGE[i])
@@ -512,10 +514,22 @@ def main():
         rsi = int(RSI_Period[i])
         AOL = int(LengthAO[i])
         tf = TF[i]
+        seconds = time.time()
+        local_time = time.ctime(seconds)
+        if str(local_time[14:-9]) == '0' and not aldynoti:
+            total = round(float(balance['total']['USDT']),2)
+            notify.send(f':D\nTotal Balance : {total} USDT')
+            aldynoti = True
+        if str(local_time[14:-9]) == '3':
+            aldynoti = False
         current_positions = [position for position in positions if float(position['positionAmt']) != 0]
-        position_bilgi = pd.DataFrame(current_positions, columns=["symbol", "entryPrice","positionSide", "unrealizedProfit", "positionAmt", "initialMargin" ,"isolatedWallet"])
+        position_bilgi = pd.DataFrame(current_positions, columns=["symbol", "entryPrice","positionSide", "unrealizedProfit", "positionAmt", "initialMargin"])
         exchange.load_markets()
-        bars = exchange.fetch_ohlcv(symbol, timeframe=tf, since = None, limit = 1002)
+        try:
+            bars = exchange.fetch_ohlcv(symbol, timeframe=tf, since = None, limit = 1002)
+        except:
+            time.sleep(1)
+            bars = exchange.fetch_ohlcv(symbol, timeframe=tf, since = None, limit = 1002)
         df = pd.DataFrame(bars[:-1], columns=['timestamp', 'Open', 'High', 'Low', 'Close', 'Volume'])
         df['timestamp'] = pd.to_datetime(df['timestamp'], unit='ms')
         df = df.set_index('timestamp')

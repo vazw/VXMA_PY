@@ -292,7 +292,9 @@ def RR1(df,symbol,direction):
     return target
 
 def callbackRate(df):
-    rate = round((df['Highest'][len(df.index)-1]-df['Lowest'][len(df.index)-1])/df['Highest'][len(df.index)-1]*100,1)
+    highest = float(swinghigh(df,Pivot))
+    lowest = float(swinglow(df,Pivot))
+    rate = round((highest-lowest)/highest*100,1)
     if rate > 5 :
         rate = 5
     elif rate < 0.1 :
@@ -354,7 +356,7 @@ def OpenLong(df,balance,symbol,lev):
     notify.send(msg)
     candle(df,symbol)
     #clearconsol()
-    return
+    return msg
 
 #OpenShort=Sell
 def OpenShort(df,balance,symbol,lev):
@@ -411,7 +413,7 @@ def OpenShort(df,balance,symbol,lev):
     notify.send(msg)
     candle(df,symbol)
     # clearconsol()
-    return
+    return msg
 #CloseLong=Sell
 def CloseLong(df,balance,symbol,amt,pnl):
     print('Close Long')
@@ -426,7 +428,7 @@ def CloseLong(df,balance,symbol,amt,pnl):
     notify.send(msg)
     candle(df,symbol)
     # clearconsol()
-    return
+    return msg
 #CloseShort=Buy
 def CloseShort(df,balance,symbol,amt,pnl):
     print('Close Short')
@@ -441,7 +443,7 @@ def CloseShort(df,balance,symbol,amt,pnl):
     notify.send(msg)
     candle(df,symbol)
     # clearconsol()
-    return
+    return msg
 
 def check_buy_sell_signals(df,symbol,status,balance,lev):
     is_in_Long = False

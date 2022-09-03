@@ -34,6 +34,7 @@ USESL = config['STAT']['USE_SL']
 Tailing_SL = config['STAT']['Tailing_SL']
 MIN_BALANCE = config['STAT']['MIN_BALANCE']
 RISK = config['STAT']['LOST_PER_TARDE']
+Max_Size = float(config['STAT']['MAX_Margin_USE'])
 TPRR1 = config['STAT']['RiskReward_TP1']
 TPRR2 = config['STAT']['RiskReward_TP2']
 TPPer = int(config['STAT']['Percent_TP1'])
@@ -310,10 +311,12 @@ def OpenLong(df,balance,symbol,lev):
         lever = exchange.fetch_positions_risk([symbol])
         for x in range(len(lever)):
             if (lever[x]['symbol']) == symbol:
-                leverrage = round(lever[x]['leverage'],0)
-                print(leverrage)
-                exchange.set_leverage(int(leverrage),symbol)
+                lev = round(lever[x]['leverage'],0)
+                print(lev)
+                exchange.set_leverage(int(lev),symbol)
                 break
+    if amount*ask > Max_Size*int(lev):
+        amount = Max_Size*int(lev)/ask  
     free = float(balance['free']['USDT'])
     amttp1 = amount*(TPPer/100)
     amttp2 = amount*(TPPer2/100)
@@ -365,10 +368,12 @@ def OpenShort(df,balance,symbol,lev):
         lever = exchange.fetch_positions_risk([symbol])
         for x in range(len(lever)):
             if (lever[x]['symbol']) == symbol:
-                leverrage = round(lever[x]['leverage'],0)
-                print(leverrage)
-                exchange.set_leverage(int(leverrage),symbol)
+                lev = round(lever[x]['leverage'],0)
+                print(lev)
+                exchange.set_leverage(int(lev),symbol)
                 break
+    if amount*bid > Max_Size*int(lev):
+        amount = Max_Size*int(lev)/bid  
     free = float(balance['free']['USDT'])
     amttp1 = amount*(TPPer/100)
     amttp2 = amount*(TPPer2/100)

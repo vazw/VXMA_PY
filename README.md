@@ -12,9 +12,10 @@ What's this version do?
 |-v.1.2.1 = fix TP formula.
 |-v.1.2.2 = TailingStopMarket order fully-function.
 |- 			
-|NEXT ???
-|- Re-entry when SL and Trend did not changed
+|-v2.0
 |- Avoid Large Position amount
+|- Input Max margin use
+|- แจ้งเตือนยอดเงินทุกชั่วโมง
 ```
 ##สามารถตั้งค่าได้ดังต่อไปนี้นี้
 ```
@@ -30,6 +31,7 @@ USE_SL = True
 Tailing_SL = True
 MIN_BALANCE = $50
 LOST_PER_TARDE = $10 
+MAX_Margin_USE = $5
 RiskReward = 3
 TP_Percent = 50
 Pivot_lookback = 50

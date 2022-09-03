@@ -1,6 +1,3 @@
-from ast import If
-from platform import mac_ver
-from turtle import title
 import ccxt
 import time
 import pandas as pd
@@ -10,7 +7,6 @@ import numpy as np
 from line_notify import LineNotify 
 import configparser
 from datetime import datetime as dt
-import schedule
 import warnings
 warnings.filterwarnings('ignore')
 import os
@@ -93,10 +89,14 @@ notify.send(wellcome)
 
 def candle(df,symbol):
     data = df.tail(365)
-    s = mplf.make_mpf_style(base_mpf_style='yahoo', rc={'font.size': 11},y_on_right=True)
+    rcs = {"axes.labelcolor":"none",
+            "axes.spines.left": False,
+            "axes.spines.right": False,
+            "axes.titlesize": '20'}
+    color = mplf.make_marketcolors(up='green',down='red',volume='inherit',wick='white',edge='white')    
+    s = mplf.make_mpf_style(base_mpf_style='nightclouds', rc=rcs ,marketcolors=color,y_on_right=True)
     vxmal = mplf.make_addplot(data.vxma,secondary_y=False,color='yellow')
-    mplf.plot(data,type='candle',title=symbol,addplot=vxmal, style=s,volume=True,savefig='candle.png')
-    time.sleep(1/2)
+    mplf.plot(data,type='candle',title=symbol,addplot=vxmal, style=s,volume=True,savefig='candle.png',tight_layout=True)
     notify.send(f'info : {symbol}',image_path=('./candle.png'))
     return 
 
@@ -207,52 +207,59 @@ def vxma(df):
             df['sell'][current] = False
     return df
 #Pivot High-Low only calculate last fixed bars
-def pivot(df):
+def swinghigh(df,Pivot):
     df['Highest'] = df['High']
+    for current in range(len(df.index) - int(Pivot), len(df.index)):
+        previous = current - 1
+        if df['High'][current] > df['Highest'][previous]:
+            df['Highest'][current] = df['High'][current]
+        else : df['Highest'][current] = df['Highest'][previous]
+    highest = df['Highest'][current]
+    return highest
+
+def swinglow(df,Pivot):
     df['Lowest'] = df['Low']
     for current in range(len(df.index) - int(Pivot), len(df.index)):
         previous = current - 1
         if df['Low'][current] < df['Lowest'][previous]:
             df['Lowest'][current] = df['Low'][current]
         else : df['Lowest'][current] = df['Lowest'][previous]
-        if df['High'][current] > df['Highest'][previous]:
-            df['Highest'][current] = df['High'][current]
-        else : df['Highest'][current] = df['Highest'][previous]
-    return df
+    Lowest = df['Lowest'][current]    
+    return Lowest
+
 #Build Data Pack for VXMA
 def indicator(df,ema_period,linear,smooth,atr_p,atr_m,rsi,AOL):
     df['ema'] = ta.ema(df['Close'],ema_period)
     df['subhag'] = ta.ema(ta.linreg(df['Close'],linear,0),smooth)
     alphatrend(df,atr_p,atr_m,rsi)
     andean(df,AOL)
-    pivot(df)
     vxma(df)
     return df
 #Position Sizing
 def buysize(df,balance,symbol):
     last = len(df.index) - 1
-    exchange.load_markets()
     freeusd = float(balance['free']['USDT'])
+    swinglow = swinglow(df,Pivot)
     if RISK[0]=='$' :
         risk = float(RISK[1:len(RISK)])
     else :
         percent = float(RISK)
         risk = (percent/100)*freeusd
-    amount = abs(risk  / (df['Close'][last] - df['Lowest'][last]))
+    amount = abs(risk  / (df['Close'][last] - float(swinglow)))
     qty_precision = exchange.markets[symbol]['precision']['amount']
     lot = round(amount,qty_precision)
     return lot
 
 def sellsize(df,balance,symbol):
     last = len(df.index) - 1
-    exchange.load_markets()
     freeusd = float(balance['free']['USDT'])
+    swinghigh = swinghigh(df,Pivot)
     if RISK[0]=='$' :
         risk = float(RISK[1:len(RISK)])
     else :
         percent = float(RISK)
         risk = (percent/100)*freeusd
-    amount = abs(risk  / (df['Highest'][last] - df['Close'][last]))
+    amount = abs(risk  / (float(swinghigh) - df['Close'][last]))
     qty_precision = exchange.markets[symbol]['precision']['amount']
     lot = round(amount,qty_precision)
     return lot
@@ -296,20 +303,35 @@ def OpenLong(df,balance,symbol,lev):
     print('Entry Long')
     amount = float(buysize(df,balance,symbol))
     ask = float(exchange.fetchBidsAsks([symbol])[symbol]['info']['askPrice'])
-    exchange.setLeverage(lev,symbol)
+    try:
+        exchange.set_leverage(lev,symbol)
+    except:
+        time.sleep(1)
+        lever = exchange.fetch_positions_risk([symbol])
+        for x in range(len(lever)):
+            if (lever[x]['symbol']) == symbol:
+                leverrage = round(lever[x]['leverage'],0)
+                print(leverrage)
+                exchange.set_leverage(int(leverrage),symbol)
+                break
     free = float(balance['free']['USDT'])
     amttp1 = amount*(TPPer/100)
     amttp2 = amount*(TPPer2/100)
+    swinglow = swinglow(df,Pivot)
     if free > min_balance :
-        order = exchange.createMarketOrder(symbol,'buy',amount,params={'positionSide':Lside})
-        logging.info(order)
+        try:
+            order = exchange.createMarketOrder(symbol,'buy',amount,params={'positionSide':Lside})
+            logging.info(order)
+        except ccxt.InsufficientFunds as e:
+            logging.debug(e)
+            return    
         if USESL :
             if currentMODE['dualSidePosition']:
-                orderSL         = exchange.create_order(symbol,'stop','sell',amount,float(df['Lowest'][len(df.index)-1]),params={'stopPrice':float(df['Lowest'][len(df.index)-1]),'triggerPrice':float(df['Lowest'][len(df.index)-1]),'positionSide':Lside})
+                orderSL         = exchange.create_order(symbol,'stop','sell',amount,float(swinglow),params={'stopPrice':float(swinglow),'triggerPrice':float(swinglow),'positionSide':Lside})
                 if Tailing_SL :
                     ordertailingSL  = exchange.create_order(symbol, 'TRAILING_STOP_MARKET','sell',amount,params ={'activationPrice':float(RR1(df,symbol,True)) ,'callbackRate': float(callbackRate(df)),'positionSide':Lside})
             else:
-                orderSL         = exchange.create_order(symbol,'stop','sell',amount,float(df['Lowest'][len(df.index)-1]),params={'stopPrice':float(df['Lowest'][len(df.index)-1]),'triggerPrice':float(df['Lowest'][len(df.index)-1]),'reduceOnly': True ,'positionSide':Lside})
+                orderSL         = exchange.create_order(symbol,'stop','sell',amount,float(swinglow),params={'stopPrice':float(swinglow),'triggerPrice':float(swinglow),'reduceOnly': True ,'positionSide':Lside})
                 if Tailing_SL :
                     ordertailingSL  = exchange.create_order(symbol, 'TRAILING_STOP_MARKET','sell',amount,params ={'activationPrice':float(RR1(df,symbol,True)) ,'callbackRate': float(callbackRate(df)),'reduceOnly': True ,'positionSide':Lside})
             if Tailing_SL :
@@ -325,30 +347,46 @@ def OpenLong(df,balance,symbol,lev):
         total = float(balance['total']['USDT'])
         msg ="BINANCE:\n" + "BOT         : " + BOT_NAME + "\nCoin        : " + symbol + "\nStatus      : " + "OpenLong[BUY]" + "\nAmount    : " + str(amount) +"("+str(round((amount*ask),2))+" USDT)" + "\nPrice        :" + str(ask) + " USDT" + str(round(margin,2))+  " USDT"+ "\nBalance   :" + str(round(total,2)) + " USDT"
     else :
-        msg = "MARGIN-CALL!!!\nยอดเงินต่ำกว่าที่กำหนดไว้  : " + str(min_balance) + '\nยอดปัจจุบัน' + str(free) + 'USD\nบอทจะทำการยกเลิกการเข้า Position ทั้งหมด' 
+        msg = "MARGIN-CALL!!!\nยอดเงินต่ำกว่าที่กำหนดไว้  : " + str(min_balance) + '\nยอดปัจจุบัน ' + str(round(free,2)) + ' USD\nบอทจะทำการยกเลิกการเข้า Position ทั้งหมด' 
     notify.send(msg)
     candle(df,symbol)
-    clearconsol()
+    #clearconsol()
     return
+
 #OpenShort=Sell
 def OpenShort(df,balance,symbol,lev):
     print('Entry Short')
     amount = float(buysize(df,balance,symbol))
     bid = float(exchange.fetchBidsAsks([symbol])[symbol]['info']['bidPrice'])
-    exchange.setLeverage(lev,symbol)
+    try:
+        exchange.set_leverage(lev,symbol)
+    except:
+        time.sleep(1)
+        lever = exchange.fetch_positions_risk([symbol])
+        for x in range(len(lever)):
+            if (lever[x]['symbol']) == symbol:
+                leverrage = round(lever[x]['leverage'],0)
+                print(leverrage)
+                exchange.set_leverage(int(leverrage),symbol)
+                break
     free = float(balance['free']['USDT'])
     amttp1 = amount*(TPPer/100)
     amttp2 = amount*(TPPer2/100)
+    swinghigh = swinghigh(df,Pivot)
     if free > min_balance :
-        order = exchange.createMarketOrder(symbol,'sell',amount,params={'positionSide':Sside})
-        logging.info(order)
+        try:
+            order = exchange.createMarketOrder(symbol,'sell',amount,params={'positionSide':Sside})
+            logging.info(order)
+        except ccxt.InsufficientFunds as e:
+            logging.debug(e)
+            return        
         if USESL :
             if currentMODE['dualSidePosition']:
-                orderSL         = exchange.create_order(symbol,'stop','buy',amount,float(df['Highest'][len(df.index)-1]),params={'stopPrice':float(df['Highest'][len(df.index)-1]),'triggerPrice':float(df['Highest'][len(df.index)-1]),'positionSide':Sside})
+                orderSL         = exchange.create_order(symbol,'stop','buy',amount,float(swinghigh),params={'stopPrice':float(swinghigh),'triggerPrice':float(swinghigh),'positionSide':Sside})
                 if Tailing_SL :
                     ordertailingSL  = exchange.create_order(symbol,'TRAILING_STOP_MARKET','buy',amount,params ={'activationPrice':float(RR1(df,symbol,False)) ,'callbackRate': float(callbackRate(df)),'positionSide':Sside})
             else :
-                orderSL         = exchange.create_order(symbol,'stop','buy',amount,float(df['Highest'][len(df.index)-1]),params={'stopPrice':float(df['Highest'][len(df.index)-1]),'triggerPrice':float(df['Highest'][len(df.index)-1]),'reduceOnly': True ,'positionSide':Sside})
+                orderSL         = exchange.create_order(symbol,'stop','buy',amount,float(swinghigh),params={'stopPrice':float(swinghigh),'triggerPrice':float(swinghigh),'reduceOnly': True ,'positionSide':Sside})
                 if Tailing_SL :
                     ordertailingSL  = exchange.create_order(symbol,'TRAILING_STOP_MARKET','buy',amount,params ={'activationPrice':float(RR1(df,symbol,False)) ,'callbackRate': float(callbackRate(df)),'reduceOnly': True ,'positionSide':Sside})
             if Tailing_SL :    
@@ -364,16 +402,16 @@ def OpenShort(df,balance,symbol,lev):
         total = float(balance['total']['USDT'])
         msg ="BINANCE:\n" + "BOT         : " + BOT_NAME + "\nCoin        : " + symbol + "\nStatus      : " + "OpenShort[SELL]" + "\nAmount    : " + str(amount) +"("+str(round((amount*bid),2))+" USDT)" + "\nPrice        :" + str(bid) + " USDT" + str(round(margin,2))+  " USDT"+ "\nBalance   :" + str(round(total,2)) + " USDT"
     else :
-        msg = "MARGIN-CALL!!!\nยอดเงินต่ำกว่าที่กำหนดไว้  : " + str(min_balance) + '\nยอดปัจจุบัน' + str(free) + 'USD\nบอทจะทำการยกเลิกการเข้า Position ทั้งหมด' 
+        msg = "MARGIN-CALL!!!\nยอดเงินต่ำกว่าที่กำหนดไว้  : " + str(min_balance) + '\nยอดปัจจุบัน ' + str(round(free,2)) + ' USD\nบอทจะทำการยกเลิกการเข้า Position ทั้งหมด' 
     notify.send(msg)
     candle(df,symbol)
-    clearconsol()
+    # clearconsol()
     return
 #CloseLong=Sell
-def CloseLong(df,balance,symbol,status):
+def CloseLong(df,balance,symbol,amt,pnl):
     print('Close Long')
-    amount = float(status["positionAmt"][len(status.index) -1])
-    upnl = float(status["unrealizedProfit"][len(status.index) -1])
+    amount = abs(amt)
+    upnl = pnl
     bid = float(exchange.fetchBidsAsks([symbol])[symbol]['info']['bidPrice'])
     order = exchange.createMarketOrder(symbol,'sell',amount,params={'positionSide':Lside})
     time.sleep(1)
@@ -382,13 +420,13 @@ def CloseLong(df,balance,symbol,status):
     msg ="BINANCE:\n" + "BOT         : " + BOT_NAME + "\nCoin        : " + symbol + "\nStatus      : " + "CloseLong[SELL]" + "\nAmount    : " + str(amount) +"("+str(round((amount*bid),2))+" USDT)" + "\nPrice        :" + str(bid) + " USDT" + "\nRealized P/L: " + str(round(upnl,2)) + " USDT"  +"\nBalance   :" + str(round(total,2)) + " USDT"
     notify.send(msg)
     candle(df,symbol)
-    clearconsol()
+    # clearconsol()
     return
 #CloseShort=Buy
-def CloseShort(df,balance,symbol,status):
+def CloseShort(df,balance,symbol,amt,pnl):
     print('Close Short')
-    amount = abs(float(status["positionAmt"][len(status.index) -1] if status["symbol"][len(status.index) -1] == symbol else status["positionAmt"][len(status.index) -1]))
-    upnl = float(status["unrealizedProfit"][len(status.index) -1] if status["symbol"][len(status.index) -1] == symbol else status["positionAmt"][len(status.index) -1])
+    amount = abs(amt)
+    upnl = pnl
     ask = float(exchange.fetchBidsAsks([symbol])[symbol]['info']['askPrice'])
     order = exchange.createMarketOrder(symbol,'buy',amount,params={'positionSide':Sside})
     time.sleep(1)
@@ -396,8 +434,8 @@ def CloseShort(df,balance,symbol,status):
     total = float(balance['total']['USDT'])
     msg ="BINANCE:\n" + "BOT         : " + BOT_NAME + "\nCoin        : " + symbol + "\nStatus      : " + "CloseShort[BUY]" + "\nAmount    : " + str(amount) +"("+ str(round((amount*ask),2))+" USDT)" + "\nPrice        :" + str(ask) + " USDT" + "\nRealized P/L: " + str(round(upnl,2)) + " USDT"  +"\nBalance   :" + str(round(total,2)) + " USDT"
     notify.send(msg)
-    clearconsol()
     candle(df,symbol)
+    # clearconsol()
     return
 
 def check_buy_sell_signals(df,symbol,status,balance,lev):
@@ -406,27 +444,35 @@ def check_buy_sell_signals(df,symbol,status,balance,lev):
     is_in_position = False
     last = len(df.index) -1
     previous = last - 1
+    posim = symbol.replace('/','')
+    amt = 0.0
+    upnl = 0.0
+    for i in status.index:
+        if status['symbol'][i] == posim:
+            amt = float(status['positionAmt'][i])
+            upnl = float(status['unrealizedProfit'][i])
+            print(amt)
+            break
     # NO Position
-    if not status.empty and status["positionAmt"][len(status.index) -1] != 0 and status["symbol"][len(status.index) -1] == symbol :
+    if not status.empty and amt != 0 :
         is_in_position = True
     else: 
         is_in_position = False
         is_in_Short = False
         is_in_Long = False
     # Long position
-    if is_in_position and float(status["positionAmt"][len(status.index) -1]) > 0 and status["symbol"][len(status.index) -1] == symbol :
+    if is_in_position and amt > 0  :
         is_in_Long = True
         is_in_Short = False
     # Short position
-    if is_in_position and float(status["positionAmt"][len(status.index) -1]) < 0 and status["symbol"][len(status.index) -1] == symbol :
+    if is_in_position and amt < 0  :
         is_in_Short = True
-        is_in_Long = False
-    print(df.tail(4))    
+        is_in_Long = False  
     print("checking for buy and sell signals")
-    if df['buy'][last]:
+    if df['buy'][last] :
         print("changed to Bullish, buy")
         if is_in_Short :
-            CloseShort(df,balance,symbol,status)
+            CloseShort(df,balance,symbol,amt,upnl)
         if not is_in_Long and USELONG:
             exchange.cancel_all_orders(symbol)
             time.sleep(1)
@@ -437,7 +483,7 @@ def check_buy_sell_signals(df,symbol,status,balance,lev):
     if df['sell'][last]:
         print("changed to Bearish, Sell")
         if is_in_Long :
-            CloseLong(df,balance,symbol,status)
+            CloseLong(df,balance,symbol,amt,upnl)
         if not is_in_Short and USESHORT :
             exchange.cancel_all_orders(symbol)
             time.sleep(1)
@@ -446,7 +492,7 @@ def check_buy_sell_signals(df,symbol,status,balance,lev):
         else:
             print("already in position, nothing to do")
 
-def run_bot():
+def main():
     balance = exchange.fetch_balance()    
     exchange.precisionMode = ccxt.DECIMAL_PLACES
     positions = balance['info']['positions']
@@ -473,10 +519,7 @@ def run_bot():
         print(tabulate(position_bilgi, headers = 'keys', tablefmt = 'grid'))
         print(f"Fetching new bars for {symbol , tf , dt.now().isoformat()}")
         check_buy_sell_signals(df,symbol,position_bilgi,balance,leverage)
-        candle(df,symbol)
 
-schedule.every(5).seconds.do(run_bot)
-
-while True:
-    schedule.run_pending()
-    time.sleep(5)
+if __name__ == "__main__":
+    while True:
+        main()
